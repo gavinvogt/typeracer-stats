@@ -21,7 +21,7 @@ class Race:
                  '_time', '_skill_level', '_text_id', '_game_number', '_points')
     VALID_FIELDS = {'accuracy', 'num_players', 'wpm', 'place', 'timestamp',
                         'time', 'skill_level', 'text_id', 'game_number', 'points'}
-
+    
     def __init__(self, *, ac, np, wpm, r, t, sl, tid, gn, pts):
         '''
         Constructs the information about a race.
@@ -45,7 +45,7 @@ class Race:
         self._text_id = tid
         self._game_number = gn
         self._points = pts
-
+    
     def __repr__(self):
         '''
         Representation of the arguments used to create this Race
@@ -62,7 +62,7 @@ class Race:
             f"pts={repr(self._points)}",
         )
         return f"Race({', '.join(fields)})"
-
+    
     @property
     def accuracy(self):
         '''
@@ -70,7 +70,7 @@ class Race:
         float representing typing accuracy, between 0 and 1
         '''
         return self._accuracy
-
+    
     @property
     def num_players(self):
         '''
@@ -78,7 +78,7 @@ class Race:
         int representing number of players
         '''
         return self._num_players
-
+    
     @property
     def wpm(self):
         '''
@@ -86,7 +86,7 @@ class Race:
         float representing the wpm typing speed
         '''
         return self._wpm
-
+    
     @property
     def place(self):
         '''
@@ -94,7 +94,7 @@ class Race:
         int representing what place the player got
         '''
         return self._place
-
+    
     @property
     def timestamp(self):
         '''
@@ -102,7 +102,7 @@ class Race:
         float representing the unix timestamp of the time the race occurred
         '''
         return self._timestamp
-
+    
     @property
     def time(self):
         '''
@@ -110,7 +110,7 @@ class Race:
         struct_time representing the time the race occurred at
         '''
         return self._time
-
+    
     @property
     def skill_level(self):
         '''
@@ -118,7 +118,7 @@ class Race:
         str representing the skill level
         '''
         return self._skill_level
-
+    
     @property
     def text_id(self):
         '''
@@ -126,7 +126,7 @@ class Race:
         int representing the ID of the text typed
         '''
         return self._text_id
-
+    
     @property
     def game_number(self):
         '''
@@ -134,7 +134,7 @@ class Race:
         int representing the game number for the player (>= 1)
         '''
         return self._game_number
-
+    
     @property
     def points(self):
         '''
@@ -142,7 +142,7 @@ class Race:
         float representing the number of points the player earned
         '''
         return self._points
-
+    
     @classmethod
     def is_valid_field(cls, field):
         '''
@@ -207,7 +207,7 @@ def main():
     else:
         # ask for user input
         usernames = [input("Typeracer username: ")]
-
+    
     for username in usernames:
         try:
             # Load the races
@@ -215,20 +215,19 @@ def main():
             num_races = get_game_count(username)
             races = load_races(username, num_races)
             e = time.time()
+        except Exception as e:
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.write(f"Failed to load data for user `{username}`." + "\n")
+        else:
+            # Display the race stats
             num_races = len(races)
             print(f"Loaded {num_races} races ({e - s} seconds)")
-
-            # Display the race stats
             fields = ", ".join(Race.VALID_FIELDS)
             print("\nAvailable fields:", fields, sep='\n')
             print("-"*len(fields) + "\n")
             xfield = get_field(1)
             yfield = get_field(2)
             graph_stats(races, username, xfield, yfield)
-        except Exception as e:
-            traceback.print_exc(file=sys.stderr)
-            sys.stderr.write(f"Failed to load data for user `{username}`." + "\n")
 
 if __name__ == "__main__":
     main()
-
