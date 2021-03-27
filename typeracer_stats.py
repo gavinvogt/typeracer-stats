@@ -8,6 +8,7 @@ This program will scrape Typeracer for data about the given player
 import sys
 import requests
 import time
+import traceback
 import numpy
 import matplotlib.pyplot as plt
 
@@ -20,6 +21,8 @@ class Race:
                  '_time', '_skill_level', '_text_id', '_game_number', '_points')
     VALID_FIELDS = {'accuracy', 'num_players', 'wpm', 'place', 'timestamp',
                         'time', 'skill_level', 'text_id', 'game_number', 'points'}
+    NUMERIC_FIELDS = {'accuracy', 'num_players', 'wpm', 'place', 'timestamp',
+                        'text_id', 'game_number', 'points'}
 
     def __init__(self, *, ac, np, wpm, r, t, sl, tid, gn, pts):
         '''
@@ -143,40 +146,42 @@ class Race:
         return self._points
 
     @classmethod
-    def is_valid_field(cls, field):
+    def is_valid_field(cls, field: str):
         '''
         Checks if the given field is a valid field
+        field: str, representing the name of the field
         '''
         return (field in cls.VALID_FIELDS)
+    
+    @classmethod
+    def is_numeric_field(cls, field: str):
+        '''
+        Checks if the given field is a numeric field
+        field: str, representing the name of the field
+        '''
+        return (field in cls.NUMERIC_FIELDS)
 
-def get_game_count(username):
+def get_game_count(username: str):
     '''
     Gets the number of games the given user has played
     username: str, representing the player's username
     '''
     # Get the user's most recent race
-    race = load_races(username, 1)
-    if race is None:
-        # User does not exist
-        return None
-    else:
-        return race[0].game_number
+    race = load_races(username, 1)[0]
+    return race.game_number
 
-def load_races(username, num=1):
+def load_races(username: str, num: int = 1):
     '''
     Loads the race data for a given user by username
     username: str, representing the player's username
     num: int, representing the number of races to load (defaults to 1)
-    Return: list of Race objects if loaded properly, otherwise None
+    Return: list of Race objects
     '''
     url = f"https://data.typeracer.com/games?n={num}&universe=play&playerId=tr:{username}"
     r = requests.get(url)
-    if (r.status_code == 200):
-        return r.json(object_hook = lambda d: Race(**d))
-    else:
-        return None
+    return r.json(object_hook = lambda d: Race(**d))
 
-def graph_stats(races, username, xfield, yfield):
+def graph_stats(races, username: str, xfield: str, yfield: str):
     '''
     Graphs the given race statistics
     races: list of Race objects
@@ -196,15 +201,82 @@ def graph_stats(races, username, xfield, yfield):
     plt.ylabel(yfield)
     plt.show()
 
-def get_field(num):
+def graph_cumulative_average(races, username: str, yfield: str, num: int = None):
+    '''
+    Graphs a cumulative average, using `game_number` as the x-field
+    races: list of Race objects for the user
+    username: str, representing the player's username
+    yfield: str, representing the y field name
+    num: int, representing the number of races to use for each average. If
+    None, takes the lifetime average
+    '''
+    num_races = len(races)
+    stats1 = numpy.empty(num_races)
+    stats2 = numpy.empty(num_races)
+    for i in range(num_races):
+        # Collect the numbers
+        stats1[i] = races[i].game_number
+        stats2[i] = getattr(races[i], yfield)
+    
+    # Calculate the running average
+    averages = numpy.empty(num_races)
+    cur_av = 0
+    for i in range(1, num_races + 1):
+        if num is None or i < num:
+            averages[i - 1] = stats2[0: i].mean()
+        else:
+            averages[i - 1] = stats2[i - num: i].mean()
+    
+    plt.plot(stats1, averages, marker='o', linestyle='', color='green')
+    plt.title(username)
+    plt.xlabel("Game Number")
+    if num is None:
+        plt.ylabel(f'Cumulative {yfield} (lifetime)')
+    else:
+        plt.ylabel(f'Cumulative {yfield} (last {num})')
+    plt.show()
+
+def get_field(field_name):
     '''
     Gets a field
-    num: int, representing the number of the field
+    field_name: str, representing the name of the field to get
     '''
-    field = input(f"Stat {num}: ")
-    while not Race.is_valid_field(field):
-        field = input(f"Stat {num}: ")
+    field = input(f"{field_name}: ")
+    while not Race.is_numeric_field(field):
+        field = input(f"{field_name}: ")
     return field
+    
+def display_stats_loop(races, username: str):
+    '''
+    Loops to display the user's stats
+    races: list of Race objects for the user
+    username: str, representing the user's username
+    '''
+    to_continue = True
+    while to_continue:
+        # Whether to do a running average or unprocessed stats
+        is_running = input("View stat as running average? ").upper().startswith("Y")
+        if is_running:
+            num = input("Number of races to average over: ")
+            if num.isnumeric():
+                num = int(num)
+            else:
+                num = None
+        
+        # Get the fields to show stats for
+        if not is_running:
+            xfield = get_field('X field')
+        yfield = get_field('Y field')
+        
+        if is_running:
+            races.reverse()  # put races in order
+            graph_cumulative_average(races, username, yfield, num)
+        else:
+            graph_stats(races, username, xfield, yfield)
+        
+        # check if user wants to continue
+        print()
+        to_continue = input("View another stat? ").upper().startswith("Y")
 
 def main():
     if len(sys.argv) > 1:
@@ -215,28 +287,23 @@ def main():
         usernames = [input("Typeracer username: ")]
 
     for username in usernames:
-        print("Loading races for user", username, "...")
         try:
             # Load the races
             s = time.time()
             num_races = get_game_count(username)
-            if num_races is None:
-                print("User does not exist:", username)
-                continue
             races = load_races(username, num_races)
             e = time.time()
         except Exception as e:
+            traceback.print_exc(file=sys.stderr)
             sys.stderr.write(f"Failed to load data for user `{username}`." + "\n")
         else:
             # Display the race stats
             num_races = len(races)
             print(f"Loaded {num_races} races ({e - s} seconds)")
-            fields = ", ".join(Race.VALID_FIELDS)
+            fields = ", ".join(Race.NUMERIC_FIELDS)
             print("\nAvailable fields:", fields, sep='\n')
             print("-"*len(fields) + "\n")
-            xfield = get_field(1)
-            yfield = get_field(2)
-            graph_stats(races, username, xfield, yfield)
+            display_stats_loop(races, username)
 
 if __name__ == "__main__":
     main()
