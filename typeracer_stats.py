@@ -152,7 +152,7 @@ class Race:
         field: str, representing the name of the field
         '''
         return (field in cls.VALID_FIELDS)
-    
+
     @classmethod
     def is_numeric_field(cls, field: str):
         '''
@@ -183,7 +183,7 @@ def load_races(username: str, num: int = 1):
 
 def graph_stats(races, username: str, xfield: str, yfield: str):
     '''
-    Graphs the given race statistics
+    Graphs the given race statistics as a scatterplot
     races: list of Race objects
     username: str, representing the player's username
     xfield: str, representing the x field name
@@ -195,7 +195,7 @@ def graph_stats(races, username: str, xfield: str, yfield: str):
     for i in range(num_races):
         stats1[i] = getattr(races[i], xfield)
         stats2[i] = getattr(races[i], yfield)
-    plt.plot(stats1, stats2, marker='o', linestyle='', color='green')
+    plt.plot(stats1, stats2, marker='o', linestyle='', color='green', markersize=4)
     plt.title(username)
     plt.xlabel(xfield)
     plt.ylabel(yfield)
@@ -217,7 +217,7 @@ def graph_cumulative_average(races, username: str, yfield: str, num: int = None)
         # Collect the numbers
         stats1[i] = races[i].game_number
         stats2[i] = getattr(races[i], yfield)
-    
+
     # Calculate the running average
     averages = numpy.empty(num_races)
     cur_av = 0
@@ -227,7 +227,7 @@ def graph_cumulative_average(races, username: str, yfield: str, num: int = None)
         else:
             averages[i - 1] = stats2[i - num: i].mean()
     
-    plt.plot(stats1, averages, marker='o', linestyle='', color='green')
+    plt.plot(stats1, averages, marker='o', linestyle='-', color='green', markersize=2.5)
     plt.title(username)
     plt.xlabel("Game Number")
     if num is None:
@@ -245,7 +245,7 @@ def get_field(field_name):
     while not Race.is_numeric_field(field):
         field = input(f"{field_name}: ")
     return field
-    
+
 def display_stats_loop(races, username: str):
     '''
     Loops to display the user's stats
@@ -262,18 +262,18 @@ def display_stats_loop(races, username: str):
                 num = int(num)
             else:
                 num = None
-        
+
         # Get the fields to show stats for
         if not is_running:
             xfield = get_field('X field')
         yfield = get_field('Y field')
-        
+
         if is_running:
             races.reverse()  # put races in order
             graph_cumulative_average(races, username, yfield, num)
         else:
             graph_stats(races, username, xfield, yfield)
-        
+
         # check if user wants to continue
         print()
         to_continue = input("View another stat? ").upper().startswith("Y")
@@ -289,6 +289,7 @@ def main():
     for username in usernames:
         try:
             # Load the races
+            print(f"Loading races for {username} ...")
             s = time.time()
             num_races = get_game_count(username)
             races = load_races(username, num_races)
