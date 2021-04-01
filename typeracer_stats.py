@@ -269,7 +269,6 @@ def display_stats_loop(races, username: str):
         yfield = get_field('Y field')
 
         if is_running:
-            races.reverse()  # put races in order
             graph_cumulative_average(races, username, yfield, num)
         else:
             graph_stats(races, username, xfield, yfield)
@@ -304,6 +303,9 @@ def main():
             fields = ", ".join(Race.NUMERIC_FIELDS)
             print("\nAvailable fields:", fields, sep='\n')
             print("-"*len(fields) + "\n")
+            
+            # Sort the races and display stats
+            races.sort(key = lambda r: r.game_number)
             display_stats_loop(races, username)
 
 if __name__ == "__main__":
